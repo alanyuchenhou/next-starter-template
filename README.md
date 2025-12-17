@@ -44,6 +44,24 @@ You can start editing the page by modifying `app/page.tsx`. The page auto-update
 
 This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
 
+## Google Auth (Better Auth)
+
+This template can authenticate users with Google OAuth using [Better Auth](https://www.better-auth.com/).
+
+- Install is already wired via `better-auth` and the route handler at `/api/auth/*`.
+- Copy [.env.example](.env.example) to `.env.local` and fill in the values.
+
+### Google OAuth Redirect URI
+
+In Google Cloud Console → **Credentials** → your **OAuth client** → **Authorized redirect URIs**, add:
+
+- `http://localhost:3000/api/auth/callback/google` (local)
+- `https://YOUR_DOMAIN/api/auth/callback/google` (production)
+
+### Cloudflare deployment env vars
+
+When deploying to Cloudflare Workers, set the same environment variables (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`) as Worker secrets/vars in your Cloudflare project.
+
 ## Deploying To Production
 
 | Command                           | Action                                       |
