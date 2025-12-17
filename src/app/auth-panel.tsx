@@ -1,6 +1,99 @@
 "use client";
 
 import { authClient } from "@/lib/auth-client";
+import { useEffect, useMemo, useState } from "react";
+
+type BusyRange = { start: string; end: string };
+type FreeBusyResponse = {
+  calendarId: string;
+  timeMin: string;
+  timeMax: string;
+  busy: BusyRange[];
+};
+
+function formatBusyRange(range: BusyRange) {
+  const start = new Date(range.start);
+  const end = new Date(range.end);
+  const formatter = new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+
+  return `${formatter.format(start)} – ${formatter.format(end)}`;
+}
+
+function GoogleCalendarFreeBusy() {
+  const [data, setData] = useState<FreeBusyResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function run() {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const res = await fetch("/api/google/freebusy", {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as {
+            message?: string;
+          } | null;
+          throw new Error(body?.message || `Request failed (${res.status})`);
+        }
+
+        const json = (await res.json()) as FreeBusyResponse;
+        if (!cancelled) setData(json);
+      } catch (e) {
+        if (!cancelled) {
+          setData(null);
+          setError(e instanceof Error ? e.message : "Failed to load calendar");
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const busyLines = useMemo(() => {
+    if (!data?.busy) return [];
+    return data.busy
+      .slice()
+      .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())
+      .map(formatBusyRange);
+  }, [data]);
+
+  return (
+    <div className="text-sm/6 font-[family-name:var(--font-geist-mono)]">
+      <div className="mb-1">Google Calendar events (next 7 days)</div>
+      {isLoading ? (
+        <div>Loading…</div>
+      ) : error ? (
+        <div>Calendar error: {error}</div>
+      ) : busyLines.length === 0 ? (
+        <div>No busy times found.</div>
+      ) : (
+        <ul className="list-inside list-disc">
+          {busyLines.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export function AuthPanel() {
   const { data: session, isPending, error } = authClient.useSession();
@@ -38,9 +131,12 @@ export function AuthPanel() {
 
   return (
     <div className="flex gap-4 items-center flex-col sm:flex-row">
-      <div className="text-sm/6 font-[family-name:var(--font-geist-mono)]">
-        Signed in as{" "}
-        {session.user.email ?? session.user.name ?? session.user.id}
+      <div className="flex flex-col gap-2">
+        <div className="text-sm/6 font-[family-name:var(--font-geist-mono)]">
+          Signed in as{" "}
+          {session.user.email ?? session.user.name ?? session.user.id}
+        </div>
+        <GoogleCalendarFreeBusy />
       </div>
       <button
         type="button"
