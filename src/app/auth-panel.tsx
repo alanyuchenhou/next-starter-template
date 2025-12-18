@@ -29,6 +29,7 @@ function GoogleCalendarFreeBusy() {
   const [data, setData] = useState<FreeBusyResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [days, setDays] = useState<number>(7);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,7 +38,7 @@ function GoogleCalendarFreeBusy() {
       setIsLoading(true);
       setError(null);
       try {
-        const res = await fetch("/api/google/freebusy", {
+        const res = await fetch(`/api/google/freebusy?days=${days}`, {
           method: "GET",
           headers: { Accept: "application/json" },
         });
@@ -65,7 +66,7 @@ function GoogleCalendarFreeBusy() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [days]);
 
   const busyLines = useMemo(() => {
     if (!data?.busy) return [];
@@ -77,7 +78,23 @@ function GoogleCalendarFreeBusy() {
 
   return (
     <div className="text-sm/6 font-[family-name:var(--font-geist-mono)]">
-      <div className="mb-1">Google Calendar events (next 7 days)</div>
+      <div className="mb-1">Google Calendar availability</div>
+      <label className="mb-2 flex items-center gap-2">
+        <span>Days ahead</span>
+        <input
+          className="w-20 rounded border border-solid border-black/[.08] dark:border-white/[.145] bg-transparent px-2 py-1"
+          type="number"
+          min={1}
+          max={30}
+          step={1}
+          value={days}
+          onChange={(e) => {
+            const next = Number(e.target.value);
+            if (!Number.isFinite(next)) return;
+            setDays(Math.min(30, Math.max(1, Math.floor(next))));
+          }}
+        />
+      </label>
       {isLoading ? (
         <div>Loading…</div>
       ) : error ? (

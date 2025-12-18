@@ -1,4 +1,5 @@
 import { getAuth } from "@/lib/auth";
+import { z } from "zod";
 
 type GoogleFreeBusyApiResponse = {
   calendars?: Record<
@@ -12,6 +13,29 @@ type GoogleFreeBusyApiResponse = {
 
 export async function GET(request: Request) {
   const auth = getAuth();
+
+  const url = new URL(request.url);
+
+  const querySchema = z.object({
+    days: z.coerce.number().int().min(1).max(30).default(7),
+  });
+
+  const query = querySchema.safeParse({
+    days: url.searchParams.get("days") ?? undefined,
+  });
+
+  if (!query.success) {
+    return Response.json(
+      {
+        error: "BAD_REQUEST",
+        message: "Invalid query parameters.",
+        issues: query.error.issues,
+      },
+      { status: 400 },
+    );
+  }
+
+  const { days } = query.data;
 
   let tokenData:
     | {
@@ -44,7 +68,7 @@ export async function GET(request: Request) {
   }
 
   const timeMin = new Date();
-  const timeMax = new Date(timeMin.getTime() + 7 * 24 * 60 * 60 * 1000);
+  const timeMax = new Date(timeMin.getTime() + days * 24 * 60 * 60 * 1000);
 
   const res = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
     method: "POST",
